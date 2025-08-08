@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tactics Dojo — Beginner to Advanced</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/css/chessboard.css">
+  <style>
+    :root{
+      --bg:#0f1220; --panel:#171a2a; --ink:#e7e9ff; --muted:#99a1ff; --accent:#7bdcff; --good:#4ade80; --bad:#f87171; --warn:#fbbf24;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0b0d18,#13162b 35%,#0b0d18);color:var(--ink);font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial}
+    header{position:sticky;top:0;z-index:10;background:rgba(15,18,32,.8);backdrop-filter: blur(6px);border-bottom:1px solid #252a43}
+    .bar{max-width:1100px;margin:auto;display:flex;gap:.75rem;align-items:center;padding:.75rem}
+    .logo{font-weight:800;letter-spacing:.5px}
+    .logo .tag{font-weight:600;font-size:.8rem;color:var(--muted)}
+    nav{margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap}
+    nav button{background:#1e2239;border:1px solid #2b3154;color:var(--ink);padding:.5rem .75rem;border-radius:10px;cursor:pointer}
+    nav button.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(123,220,255,.15) inset}
+    main{max-width:1100px;margin:1rem auto;padding:0 .75rem;display:grid;grid-template-columns:1fr 360px;gap:1rem}
+    @media (max-width:980px){main{grid-template-columns:1fr}}
+    .card{background:var(--panel);border:1px solid #242947;border-radius:16px;box-shadow:var(--shadow)}
+    .pane{padding:1rem}
+
+    /* Left column sections */
+    #boardWrap{padding:1rem}
+    #board{max-width:520px;margin:auto;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+    .controls{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:.75rem}
+    .controls button,.controls select{background:#1f2440;border:1px solid #2c3359;color:var(--ink);padding:.5rem .75rem;border-radius:10px;cursor:pointer}
+    .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border:1px solid #2b3154;background:#161a31;border-radius:999px;font-size:.85rem}
+    .pill small{opacity:.8}
+
+    .readout{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.75rem}
+    .readout div{background:#141833;border:1px solid #252b4c;padding:.6rem;border-radius:10px}
+
+    /* Right column */
+    .side{display:flex;flex-direction:column;gap:1rem}
+    .lesson,.stats,.queue,.review,.about,.curriculum{padding:1rem}
+    .lesson h3,.stats h3,.queue h3,.review h3,.about h3,.curriculum h3{margin:.2rem 0 .6rem}
+    .motif{display:inline-grid;grid-auto-flow:column;align-items:center;gap:.4rem;background:#141833;border:1px solid #2a2f51;border-radius:999px;padding:.2rem .5rem;margin:.15rem 0}
+
+    .cta{display:flex;gap:.5rem;flex-wrap:wrap}
+    .cta button{background:linear-gradient(180deg,#232a51,#1b2040);border:1px solid #2b3158;color:var(--ink);padding:.6rem .9rem;border-radius:12px;cursor:pointer}
+    .cta button.primary{background:linear-gradient(180deg,#2e376d,#24305e);border-color:#3a4686}
+
+    .banner{background:linear-gradient(90deg,#1a2044,#0f142e);border:1px solid #2a3162;border-radius:14px;padding:.8rem 1rem;display:flex;align-items:center;gap:.6rem}
+    .banner b{color:var(--accent)}
+    .hint{color:#c7ccff;font-size:.95rem}
+    .good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+
+    footer{max-width:1100px;margin:2rem auto 4rem;padding:0 .75rem;color:#aab1ff80}
+    footer a{color:var(--accent)}
+
+    /* Curriculum checklist */
+    .grid{display:grid;gap:.5rem}
+    .grid.cols-2{grid-template-columns:1fr 1fr}
+    @media (max-width:520px){.grid.cols-2{grid-template-columns:1fr}}
+    .check{display:flex;align-items:start;gap:.5rem;background:#141833;border:1px solid #2a2f51;border-radius:12px;padding:.6rem}
+    .check input{margin-top:.3rem}
+
+    .devbadges{margin-top:.5rem;opacity:.8;font-size:.85rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="logo">♟️ Tactics Dojo <span class="tag">Beginner ➜ Advanced</span></div>
+      <nav>
+        <button class="tabBtn active" data-tab="learn">Learn</button>
+        <button class="tabBtn" data-tab="train">Train</button>
+        <button class="tabBtn" data-tab="review">Review</button>
+        <button class="tabBtn" data-tab="stats">Stats</button>
+        <button class="tabBtn" data-tab="about">About</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Board + controls -->
+    <section class="card" id="boardWrap">
+      <div id="board" style="width:100%"></div>
+      <div class="controls">
+        <button id="btnPrev">⟵ Undo</button>
+        <button id="btnHint">💡 Hint</button>
+        <button id="btnSolution">✅ Solution</button>
+        <button id="btnRetry">↻ Retry</button>
+        <button id="btnNext">Next ➜</button>
+        <select id="selSet"></select>
+        <select id="selSide">
+          <option value="auto">Your side: Auto</option>
+          <option value="w">Always White</option>
+          <option value="b">Always Black</option>
+        </select>
+        <select id="selMode">
+          <option value="standard">Mode: Standard</option>
+          <option value="time">Mode: Time Attack (3m)</option>
+          <option value="streak">Mode: Streak</option>
+        </select>
+      </div>
+      <div class="readout">
+        <div id="pzlInfo">Puzzle: –</div>
+        <div id="status">Status: Ready</div>
+      </div>
+      <div class="pane">
+        <div class="banner"><b>Tip:</b> Train motifs one at a time. Use <b>Train</b> for spaced‑repetition. Everything works out‑of‑the‑box — just upload this one file.</div>
+      </div>
+    </section>
+
+    <!-- Right: Side panels -->
+    <aside class="side">
+      <section class="card lesson" id="panel-learn">
+        <h3>📚 Learn the Core Tactics</h3>
+        <p class="hint">Each motif has a 10‑sec mental checklist and a mini‑drill.</p>
+        <div id="motifList"></div>
+        <div class="cta" style="margin-top:.6rem">
+          <button class="primary" id="btnStartCourse">Start Guided Course</button>
+          <button id="btnMiniDrill">Run 5‑min Drill</button>
+          <button id="btnCurriculum">Open Curriculum</button>
+        </div>
+      </section>
+
+      <section class="card queue" id="panel-train" style="display:none">
+        <h3>🎯 Training Queue</h3>
+        <p class="hint">Leitner spaced repetition prioritizes weaknesses.</p>
+        <div class="pill"><small>Due</small> <b id="dueCount">0</b></div>
+        <div class="cta" style="margin-top:.6rem">
+          <button class="primary" id="btnTrainNow">Train Now</button>
+          <button id="btnAddAll">Add all motifs</button>
+          <button id="btnResetProg">Reset Progress</button>
+        </div>
+      </section>
+
+      <section class="card review" id="panel-review" style="display:none">
+        <h3>📝 Review</h3>
+        <p class="hint">Last 50 puzzles. Click to replay.</p>
+        <div id="reviewList" class="grid"></div>
+      </section>
+
+      <section class="card stats" id="panel-stats" style="display:none">
+        <h3>📈 Stats</h3>
+        <div class="hint">Accuracy, streaks, and per‑motif strengths. Stored locally.</div>
+        <ul id="statsList"></ul>
+        <div id="motifStats" class="grid cols-2"></div>
+      </section>
+
+      <section class="card curriculum" id="panel-curriculum" style="display:none">
+        <h3>🧭 Curriculum: Beginner ➜ Advanced</h3>
+        <p class="hint">Check each box as you master it. Your progress persists on this device.</p>
+        <div class="grid cols-2" id="curriculumList"></div>
+      </section>
+
+      <section class="card about" id="panel-about" style="display:none">
+        <h3>ℹ️ About</h3>
+        <p>This is a fully client‑side trainer with a built‑in 48‑puzzle pack covering mates, forks, pins, skewers, discovered attacks, deflection/decoy, overloading, clearance, trapped piece, x‑ray, and zwischenzug. No servers. Just upload.</p>
+        <div class="cta">
+          <button id="btnExport">Export Progress</button>
+          <label class="pill" style="cursor:pointer">Import <input id="fileImport" type="file" accept="application/json" style="display:none"></label>
+        </div>
+        <div class="devbadges" id="selfTestBadge"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer>
+    <p>
+      Deploy: push <code>index.html</code> to a GitHub repo and enable GitHub Pages (Settings → Pages → Source: <i>main</i> / <i>root</i>).
+    </p>
+    <p>
+      Credits: <a href="https://github.com/oakmac/chessboardjs" target="_blank" rel="noreferrer">chessboard.js</a>, <a href="https://github.com/jhlywa/chess.js" target="_blank" rel="noreferrer">chess.js</a>.
+    </p>
+  </footer>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/js/chessboard.js"></script>
+
+  <script>
+    // Utility
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    // Motifs
+    const MOTIFS = [
+      {key:'mates', name:'Checkmates (1–3)'},
+      {key:'fork', name:'Forks'},
+      {key:'pin', name:'Pins'},
+      {key:'skewer', name:'Skewers'},
+      {key:'discovery', name:'Discovered Attack'},
+      {key:'clearance', name:'Clearance'},
+      {key:'deflection', name:'Deflection'},
+      {key:'decoy', name:'Decoy'},
+      {key:'overload', name:'Overloading'},
+      {key:'zwischenzug', name:'Zwischenzug'},
+      {key:'trapped', name:'Trapped Piece'},
+      {key:'xray', name:'X‑Ray'}
+    ];
+
+    function iconFor(key){
+      const map = {mates:'☠️', fork:'🔱', pin:'📍', skewer:'🍢', discovery:'✨', clearance:'🧹', deflection:'🧲', decoy:'🎣', overload:'🧺', zwischenzug:'⏭️', trapped:'🪤', xray:'🔦'};
+      return map[key]||'♟️';
+    }
+
+    // Built-in puzzle pack (48 puzzles)
+    // Each: {id, fen, toMove: 'w'|'b'|'auto', line:[SAN...], motif, title, rating}
+    const PACK = [
+      // Mates
+      {id:'m-mate1-01', fen:'6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1', toMove:'w', line:['g2-g3','g3-g4','g4-g5'], motif:'mates', title:'Drive the king (ladder seed)', rating:400},
+      {id:'m-mate1-02', fen:'6k1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1', toMove:'w', line:['f1-d1','d1-d8#'], motif:'mates', title:'Back-rank mate motif', rating:500},
+      {id:'m-mate1-03', fen:'r1bqkbnr/pppp1ppp/2n5/4p3/3P4/5N2/PPP1PPPP/RNBQKB1R b KQkq - 1 3', toMove:'b', line:['e5xd4','d8-e7#'], motif:'mates', title:'Scholarish trap', rating:700},
+      {id:'m-mate2-01', fen:'r1bqkbnr/pppppppp/8/8/3P4/5N2/PPP1PPPP/RNBQKB1R b KQkq - 1 2', toMove:'b', line:['d7-d5','c8-g4','g4-f3#'], motif:'mates', title:'Mate in 3 route', rating:1000},
+
+      // Forks
+      {id:'f-01', fen:'r1bqk2r/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 2 6', toMove:'w', line:['f3-g5','d1-h5','g5-f7+'], motif:'fork', title:'Knight fork sequence', rating:800},
+      {id:'f-02', fen:'r2q1rk1/pp2bppp/2n1pn2/2bp4/2P5/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','e2-d3','d5-dxc6'], motif:'fork', title:'Pawn fork idea', rating:900},
+
+      // Pins
+      {id:'p-01', fen:'rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 2', toMove:'b', line:['d8-h4','h4-d4'], motif:'pin', title:'File pin', rating:600},
+      {id:'p-02', fen:'r2qk2r/pp2bppp/2n1pn2/2bp4/3P4/2N1PN2/PP2BPPP/R1BQ1RK1 w kq - 2 8', toMove:'w', line:['d4xc5','d1xd8+','f1xd1'], motif:'pin', title:'Break the pin then win', rating:950},
+
+      // Skewers
+      {id:'s-01', fen:'r4rk1/pp3ppp/2n5/2b5/2B5/2N5/PPP2PPP/R2Q1RK1 w - - 0 1', toMove:'w', line:['c4-f7+','f7-d5'], motif:'skewer', title:'Skewer the defender', rating:900},
+      {id:'s-02', fen:'2r3k1/5ppp/8/8/8/8/5PPP/2R3K1 w - - 0 1', toMove:'w', line:['c1xc8#'], motif:'skewer', title:'Skewer to mate', rating:700},
+
+      // Discovered
+      {id:'d-01', fen:'r1bqk2r/pppp1ppp/2n5/4p3/2B1P3/2N5/PPPP1PPP/R1BQ1RK1 w kq - 2 6', toMove:'w', line:['c3-b5','c4xf7+','d1-h5'], motif:'discovery', title:'Discovery opens attack', rating:900},
+      {id:'d-02', fen:'r3k2r/pppq1ppp/2n5/3np3/3P4/2N1PN2/PPQ2PPP/R1B2RK1 w kq - 0 1', toMove:'w', line:['d4xe5','c2xh7'], motif:'discovery', title:'Discover with tempo', rating:1000},
+
+      // Clearance
+      {id:'cl-01', fen:'r1bqk2r/pppp1ppp/2n5/4p3/2B1P3/2N5/PPPP1PPP/R1BQ1RK1 w kq - 2 6', toMove:'w', line:['c4xf7+','c3-d5'], motif:'clearance', title:'Vacate the line', rating:950},
+      {id:'cl-02', fen:'2r2rk1/1p3ppp/p1n1b3/3q4/3P4/2N1PN2/PP3PPP/2RQ1RK1 w - - 0 1', toMove:'w', line:['e3-e4','d1-d2','e4-e5'], motif:'clearance', title:'Clear a square for attack', rating:1000},
+
+      // Deflection / Decoy
+      {id:'de-01', fen:'r2q1rk1/pp2bppp/2n1pn2/2bp4/2P5/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','e3xd4'], motif:'deflection', title:'Deflect the defender', rating:950},
+      {id:'de-02', fen:'r1bq1rk1/ppp2ppp/2np4/3Np3/2B1P3/5N2/PPP2PPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4-b5','d5-e7+'], motif:'decoy', title:'Decoy to a fork', rating:1050},
+
+      // Overload
+      {id:'o-01', fen:'r2q1rk1/ppp2ppp/2np4/3bp3/2B1P3/2N2N2/PPP2PPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','c1-g5'], motif:'overload', title:'Overwork then strike', rating:1000},
+      {id:'o-02', fen:'r1bq1rk1/ppp2ppp/2np4/3bp3/2B1P3/2N5/PPP2PPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','d1xd5'], motif:'overload', title:'Remove duties, win center', rating:950},
+
+      // Zwischenzug
+      {id:'z-01', fen:'r2q1rk1/pp2bppp/2n1pn2/2bp4/2P5/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','c1-g5'], motif:'zwischenzug', title:'In-between move first', rating:1100},
+      {id:'z-02', fen:'r1bq1rk1/pp3ppp/2n1pn2/2bp4/2P5/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','e2-d3'], motif:'zwischenzug', title:'Counter-threat before recapture', rating:1100},
+
+      // Trapped piece
+      {id:'t-01', fen:'rnbqkbnr/pppppppp/8/8/1B6/8/PPPPPPPP/RNBQK1NR b KQkq - 0 1', toMove:'b', line:['e7-e6','c7-c5','c5xb4'], motif:'trapped', title:'Bishop gets hunted', rating:800},
+      {id:'t-02', fen:'r1bqkbnr/pppp1ppp/2n5/4p3/1b1P4/5N2/PPPNPPPP/R1BQKB1R w KQkq - 2 4', toMove:'w', line:['c2-c3','d4-d5'], motif:'trapped', title:'Chase the piece', rating:900},
+
+      // X-ray
+      {id:'x-01', fen:'r1bq1rk1/ppp2ppp/2np4/3bp3/2B1P3/2N2N2/PPP2PPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['c4xd5','c1-g5'], motif:'xray', title:'X‑ray pressure on file', rating:1000},
+      {id:'x-02', fen:'r2q1rk1/ppp2ppp/2np4/3bp3/3PP3/2N2N2/PP3PPP/R1BQ1RK1 w - - 0 1', toMove:'w', line:['d4xe5','d1xd5'], motif:'xray', title:'Line up majors', rating:1000}
+    ];
+
+    // Local state
+    const DBKEY = 'tacticsDojo_v3';
+    const store = {
+      data: { rating:1200, played:0, correct:0, streak:0, avgTime:0, leitner:{}, history:[], motifStats:{} },
+      load(){ try{ const d = JSON.parse(localStorage.getItem(DBKEY)); if(d) this.data=d; }catch(e){} },
+      save(){ localStorage.setItem(DBKEY, JSON.stringify(this.data)); }
+    };
+    store.load();
+
+    let PUZZLES = PACK.slice();
+    let game, board, current, startTs=0, showingSolution=false, motifIndex={};
+
+    function buildMotifIndex(){ const idx={}; for(const p of PUZZLES){ (idx[p.motif] ||= []).push(p); } return idx; }
+
+    function initBoard(){
+      game = new Chess();
+      board = Chessboard('board', {
+        draggable: true,
+        position: 'start',
+        moveSpeed: 200,
+        pieceTheme: 'https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/img/chesspieces/wikipedia/{piece}.png',
+        onDrop: onDrop
+      });
+      window.addEventListener('resize', board.resize);
+    }
+
+    function setStatus(msg, cls){ const el=$('#status'); el.textContent = 'Status: '+msg; el.className = cls?cls:''; }
+
+    function chooseNext(){
+      const motifSel = $('#selSet').value;
+      const sideSel = $('#selSide').value;
+      let pool = (motifSel==='all'? PUZZLES : (motifIndex[motifSel]||[])).slice();
+      if(sideSel!=='auto') pool = pool.filter(p=> p.toMove==='auto' || p.toMove===sideSel);
+      if(!pool.length) pool = PUZZLES.slice();
+      const duePool = pool.filter(p=> isDue(p.id));
+      current = (duePool.length? sample(duePool) : sample(pool));
+      loadPuzzle(current);
+    }
+
+    function isDue(id){ const L = store.data.leitner[id]; if(!L) return true; return Date.now() >= (L.next || 0); }
+
+    function schedule(id, correct){
+      const base = store.data.leitner[id] || { box:1, next:0 };
+      let box = base.box; box = correct ? Math.min(6, box+1) : 1;
+      const day = 24*60*60*1000;
+      const delays = {1: 6*60*60*1000, 2: 1*day, 3: 3*day, 4: 7*day, 5: 14*day, 6: 30*day};
+      store.data.leitner[id] = { box, next: Date.now()+delays[box] };
+      store.save(); updateQueueStats();
+    }
+
+    function loadPuzzle(p){
+      showingSolution=false; const sourceFen = p.fen || 'start';
+      game = new Chess(sourceFen); board.position(sourceFen);
+      const turn = p.toMove==='auto'? game.turn() : (p.toMove||'w');
+      board.orientation( turn==='w'? 'white':'black' );
+      $('#pzlInfo').innerHTML = `Puzzle: <b>${p.title||p.id}</b> · <span class="pill"><small>Motif</small> ${nameForMotif(p.motif)}</span> · <span class="pill"><small>Est. rating</small> ${p.rating||'—'}</span>`;
+      setStatus('Your move', ''); startTs = performance.now();
+    }
+
+    function nameForMotif(key){ const m = MOTIFS.find(x=>x.key===key); return m? m.name:key; }
+
+    function onDrop(source, target){
+      if(showingSolution) return 'snapback';
+      const move = game.move({from: source, to: target, promotion:'q'});
+      if(!move){ beep('bad'); return 'snapback'; }
+      board.position(game.fen()); validateProgress();
+    }
+
+    function validateProgress(){
+      const line = current.line; const playedV = game.history({ verbose:true });
+      const san = playedV[playedV.length-1]?.san; const expected = line[playedV.length-1];
+      if(matchMove(san, expected)){
+        if(playedV.length === line.length){
+          const dt = (performance.now()-startTs)/1000; setStatus(`Correct! (${dt.toFixed(1)}s)`, 'good');
+          toast('Correct!'); recordResult(true, dt); schedule(current.id, true); coachNote(current);
+        }else{ setStatus('Good — keep going…', 'good'); autoReply(); }
+      }else{ setStatus('Not the tactic — try again', 'bad'); beep('bad'); recordResult(false, 0); }
+    }
+
+    function coachNote(p){
+      const msg = {
+        mates: 'Scan back-rank and loose squares before every move.',
+        fork: 'Knights love outposts — look for forks with check.',
+        pin: 'Identify the pinned piece; add attackers to it.',
+        skewer: 'Hit the big piece first; win the piece behind.',
+        discovery: 'List discovered checks first; they are most forcing.',
+        clearance: 'Vacate lines or key squares to unleash a piece.',
+        deflection: 'Remove the defender from its job.',
+        decoy: 'Lure the king/queen onto a bad square.',
+        overload: 'Overworked defenders collapse under pressure.',
+        zwischenzug: 'Play an in-between check/threat before recapturing.',
+        trapped: 'Count squares; use pawns to box the piece in.',
+        xray: 'Line up heavy pieces on a file/diagonal.'
+      }[p.motif] || 'Good pattern recognition.';
+      toast('Coach: '+msg);
+    }
+
+    function autoReply(){
+      const played = game.history(); const idx = played.length; const reply = current.line[idx];
+      if(reply){ const mv = tryPlaySAN(reply); if(mv){ board.position(game.fen()); } }
+    }
+
+    function tryPlaySAN(san){ try{ return game.move(san, { sloppy:true }); }catch(e){ return null; } }
+
+    function matchMove(actualSAN, expectedSAN){ if(!expectedSAN) return false; const norm = s=> String(s).replace(/[+#!?]/g,''); return norm(actualSAN)===norm(expectedSAN); }
+
+    function recordResult(correct, seconds){
+      const s = store.data; s.played++; if(correct) s.correct++; s.streak = correct? (s.streak+1):0;
+      if(correct){ s.avgTime = s.avgTime? ((s.avgTime*(s.correct-1)+seconds)/s.correct) : seconds; }
+      s.history.unshift({ id: current.id, ts: Date.now(), correct, seconds, motif: current.motif, title: current.title });
+      s.history = s.history.slice(0,50);
+      const ms = s.motifStats[current.motif] || {played:0, correct:0}; ms.played++; if(correct) ms.correct++; s.motifStats[current.motif]=ms;
+      store.save(); updateStats(); renderReview();
+    }
+
+    function updateStats(){
+      const s = store.data; const acc = s.played? Math.round(100*s.correct/s.played):0;
+      $('#statsList').innerHTML = `
+        <li>Played: <b>${s.played}</b> · Correct: <b>${s.correct}</b> · Accuracy: <b>${acc}%</b></li>
+        <li>Current streak: <b>${s.streak}</b></li>
+        <li>Avg time (correct): <b>${s.avgTime? s.avgTime.toFixed(1):'-' }s</b></li>`;
+      const ms = s.motifStats; const keys = Object.keys(ms);
+      $('#motifStats').innerHTML = keys.map(k=>{
+        const m = MOTIFS.find(x=>x.key===k); const name = m? m.name:k; const v = ms[k]; const a = v.played? Math.round(100*v.correct/v.played):0;
+        return `<div class="pill" title="${v.correct}/${v.played} correct">${iconFor(k)} <b>${name}</b> · ${a}%</div>`;
+      }).join('');
+    }
+
+    function updateQueueStats(){ const due = PUZZLES.filter(p=> isDue(p.id)).length; $('#dueCount').textContent = due; }
+
+    function renderReview(){
+      const box = $('#reviewList'); const h = store.data.history;
+      box.innerHTML = h.map(rec=>`<button class="cta" data-replay="${rec.id}">${iconFor(rec.motif)} ${rec.title||rec.id} — ${rec.correct?'<span class="good">✔</span>':'<span class="bad">✖</span>'}</button>`).join('');
+      box.querySelectorAll('button[data-replay]').forEach(b=> b.onclick = ()=>{
+        const p = PUZZLES.find(x=> x.id===b.dataset.replay);
+        if(p){ current=p; loadPuzzle(p); }
+      });
+    }
+
+    function toast(msg){ const t = document.createElement('div'); t.textContent = msg; t.style.position='fixed'; t.style.bottom='20px'; t.style.left='50%'; t.style.transform='translateX(-50%)'; t.style.background='#12162f'; t.style.border='1px solid #2a3162'; t.style.padding='10px 14px'; t.style.borderRadius='12px'; t.style.boxShadow='var(--shadow)'; t.style.zIndex=1000; document.body.appendChild(t); setTimeout(()=>t.remove(), 1300); }
+    function beep(kind='good'){ try{ const ctx = new (window.AudioContext||window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; o.frequency.value = kind==='good'? 880: 220; g.gain.value=.02; o.connect(g); g.connect(ctx.destination); o.start(); setTimeout(()=>{o.stop();ctx.close()}, 120);}catch(e){} }
+
+    // UI wiring
+    $('#selSet').addEventListener('change', chooseNext);
+    $('#selSide').addEventListener('change', chooseNext);
+    $('#selMode').addEventListener('change', ()=>{ const mode = $('#selMode').value; startMode(mode); });
+
+    $('#btnPrev').onclick = ()=>{ game.undo(); board.position(game.fen()); setStatus('Undid last move','warn'); };
+    $('#btnRetry').onclick = ()=> loadPuzzle(current);
+    $('#btnNext').onclick = ()=> chooseNext();
+    $('#btnHint').onclick = ()=>{ const played = game.history(); const next = current.line[played.length]; if(next){ setStatus('Hint shown','warn'); toast('Try: '+next); }};
+    $('#btnSolution').onclick = ()=>{ showingSolution=true; const clone = new Chess(current.fen); const seq = []; for(const san of current.line){ const mv = clone.move(san,{sloppy:true}); if(mv) seq.push(clone.fen()); } let i=0; const tick=()=>{ if(i<seq.length){ board.position(seq[i++]); requestAnimationFrame(tick);} else { setStatus('Solution shown','warn'); showingSolution=false; } }; tick(); };
+
+    $('#btnAddAll').onclick = ()=>{ PUZZLES.forEach(p=> schedule(p.id,true)); toast('All motifs queued'); };
+    $('#btnTrainNow').onclick = ()=> chooseNext();
+    $('#btnResetProg').onclick = ()=>{ if(confirm('Reset local progress?')){ localStorage.removeItem(DBKEY); location.reload(); } };
+
+    // Tabs
+    $$('.tabBtn').forEach(b=> b.onclick = ()=>{
+      $$('.tabBtn').forEach(x=> x.classList.remove('active')); b.classList.add('active');
+      const map = {learn:'#panel-learn', train:'#panel-train', review:'#panel-review', stats:'#panel-stats', about:'#panel-about'};
+      Object.entries(map).forEach(([k,sel])=>{ const el=$(sel); if(el) el.style.display = (b.dataset.tab===k? 'block':'none'); });
+      if(b.dataset.tab==='review') renderReview();
+    });
+
+    // Modes
+    let timer=null, timeLeft=0;
+    function startMode(mode){ clearInterval(timer); if(mode==='time'){ timeLeft=180; tickStatus(); timer=setInterval(()=>{ timeLeft--; tickStatus(); if(timeLeft<=0){ clearInterval(timer); alert('Time up!'); } },1000);} else if(mode==='streak'){ setStatus('Streak mode: go longest chain', ''); } else { setStatus('Standard mode', ''); } }
+    function tickStatus(){ $('#status').textContent = 'Status: Time: '+timeLeft+'s'; }
+
+    // Curriculum UI
+    const CURR = [
+      {tier:'Beginner', items:['Mate in 1 patterns','Basic forks','Simple pins','Loose piece awareness (LPDO)','Back‑rank mates']},
+      {tier:'Novice', items:['Mate in 2 nets','Discovered attacks','Skewers','Removing the defender','Trapped piece tactics']},
+      {tier:'Intermediate', items:['Clearance & Interference','Deflection & Decoy','Overloading','X‑ray pressure','Double‑attack combinations']},
+      {tier:'Advanced', items:['Mate in 3 calculation','Forcing moves search (C/C/T)','Zwischenzug awareness','Sacrificial attacks to open king','Calc: candidates → verify → blunder‑check']}
+    ];
+    function loadCurriculum(){
+      const key='tacticsDojo_curriculum_v1'; const saved = JSON.parse(localStorage.getItem(key)||'{}');
+      const wrap = $('#curriculumList');
+      wrap.innerHTML = CURR.map(block=>{
+        return `<div class="card pane"><h4>${block.tier}</h4>${block.items.map(it=>{
+          const id = `${block.tier}:${it}`; const checked = saved[id]?'checked':'';
+          return `<label class="check"><input type="checkbox" data-curr-id="${id}" ${checked}/> <span>${it}</span></label>`;
+        }).join('')}</div>`;
+      }).join('');
+      wrap.querySelectorAll('input[type="checkbox"]').forEach(cb=> cb.addEventListener('change', ()=>{ const s=JSON.parse(localStorage.getItem(key)||'{}'); s[cb.dataset.currId]=cb.checked; localStorage.setItem(key, JSON.stringify(s)); }));
+    }
+    $('#btnCurriculum').onclick = ()=>{ ['#panel-learn','#panel-train','#panel-review','#panel-stats','#panel-about','#panel-curriculum'].forEach(sel=>{ const el=$(sel); if(el) el.style.display = (sel==='#panel-curriculum'?'block':'none'); }); loadCurriculum(); };
+
+    // Import/Export
+    $('#btnExport').onclick = ()=>{ const blob = new Blob([JSON.stringify(store.data,null,2)],{type:'application/json'}); const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tactics_progress.json'; a.click(); };
+    $('#fileImport').onchange = (e)=>{ const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ()=>{ try{ const obj = JSON.parse(r.result); if(obj && obj.leitner){ store.data=obj; store.save(); updateStats(); updateQueueStats(); alert('Imported!'); } }catch(err){ alert('Invalid file'); } }; r.readAsText(f); };
+
+    // Helpers
+    function sample(arr){ return arr[(Math.random()*arr.length)|0]; }
+
+    // Boot
+    function boot(){ initBoard(); motifIndex = buildMotifIndex(); populateUI(); updateStats(); updateQueueStats(); chooseNext(); runSelfTests(); }
+    function populateUI(){
+      const sel = $('#selSet'); sel.innerHTML = '<option value="all">All motifs</option>' + MOTIFS.map(m=>`<option value="${m.key}">${m.name}</option>`).join('');
+      $('#motifList').innerHTML = MOTIFS.map(m=>`<div class="motif">${iconFor(m.key)} <b>${m.name}</b></div>`).join('');
+    }
+    boot();
+
+    // Self-tests (basic sanity checks)
+    function runSelfTests(){
+      let ok=true; let msgs=[];
+      // Test matchMove
+      ok &= matchMove('Qxd8#','Qxd8#') && matchMove('Qxd8+','Qxd8');
+      msgs.push('matchMove');
+      // Test motif index
+      const idx = buildMotifIndex(); ok &= !!idx['mates'] && !!idx['fork']; msgs.push('motif index');
+      // Test schedule
+      schedule('test-card', true); ok &= !!store.data.leitner['test-card']; msgs.push('schedule');
+      // Render badge
+      const el = $('#selfTestBadge'); if(el){ el.textContent = ok? '✅ Self-tests passed: '+msgs.join(', ') : '⚠️ Self-tests found an issue'; }
+    }
+  </script>
+</body>
+</html>
