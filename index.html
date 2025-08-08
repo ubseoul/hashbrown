@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chess Tactics Dojo — Self‑Contained</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{--bg:#141833;--panel:#171a2a;--ink:#e7e9ff;--accent:#7bdcff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--sq-light:#f4ecd0;--sq-dark:#b58863;--sq-contrast-light:#fff6bf;--sq-contrast-dark:#5a6b9a}
+  *{box-sizing:border-box}
+  body { background: var(--bg); color: var(--ink); font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; margin: 0; padding: 0; display: grid; place-items: start center; gap: 1rem; }
+  header{width:100%; padding: .75rem 1rem; background:#0f142c; border-bottom:1px solid #222a4d; position:sticky; top:0}
+  h1 { margin: 0; font-size: 1.1rem }
+  .app{width: min(980px, 96vw); display: grid; grid-template-columns: 1fr 320px; gap: 1rem; padding: .75rem}
+  @media (max-width: 860px){ .app{ grid-template-columns: 1fr } }
+  .card{background: var(--panel); border:1px solid #242947; border-radius: 14px; padding: .75rem}
+  #board { width: 100%; max-width: 620px; margin:auto }
+
+  /* BOARD */
+  .boardWrap{position:relative; width:100%; max-width: 620px; margin:auto; --sq:56px; contain: layout paint; touch-action: manipulation}
+  .boardGrid{ display:grid; grid-template-columns: repeat(8, var(--sq)); grid-auto-rows: var(--sq); width: calc(var(--sq)*8); height: calc(var(--sq)*8); border:8px solid #0f142c; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.35); margin:0 auto }
+  .cell{ display:flex; align-items:center; justify-content:center; position:relative; user-select:none; cursor:pointer }
+  .light{ background: var(--sq-light) } .dark{ background: var(--sq-dark) }
+  .hc .light{ background: var(--sq-contrast-light) } .hc .dark{ background: var(--sq-contrast-dark) }
+  .sel{ outline: 4px solid #ffd200; outline-offset:-4px }
+  .hintSq{ box-shadow: inset 0 0 0 4px rgba(251,191,36,.9) }
+  .coord-file{ position:absolute; bottom:4px; right:6px; font-size:11px; opacity:.6; font-weight:600 }
+  .coord-rank{ position:absolute; top:4px; left:6px; font-size:11px; opacity:.6; font-weight:600 }
+
+  /* PIECES */
+  .piece{ font-weight: 900; font-size: calc(var(--sq) * .82); line-height:1; text-rendering: geometricPrecision; -webkit-font-smoothing: antialiased; display:inline-block; filter: drop-shadow(0 1px 0 rgba(0,0,0,.25)); }
+  .piece.white{ color:#ffffff; text-shadow: 0 0 2px rgba(0,0,0,.6), 0 1px 0 rgba(0,0,0,.8) }
+  .piece.black{ color:#101015; text-shadow: 0 0 2px rgba(255,255,255,.7), 0 1px 0 rgba(255,255,255,.9) }
+  .alpha .piece.white{ color:#ffffff }
+  .alpha .piece.black{ color:#101015 }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; margin-top:.6rem }
+  button{ background:#2a3162; color:#fff; border:1px solid #3a4280; padding:.55rem .85rem; border-radius:10px; cursor:pointer }
+  select{ background:#121736; color:#fff; border:1px solid #2b3154; border-radius:10px; padding:.45rem .6rem }
+  .pill{ display:inline-flex; align-items:center; gap:.35rem; border:1px solid #2b3154; background:#161a31; padding:.25rem .5rem; border-radius:999px; font-size:.85rem }
+  .good{ color: var(--good) } .bad{ color: var(--bad) } .warn{ color: var(--warn) }
+  .banner{ background:#121736; border:1px solid #2a3162; border-radius:12px; padding:.5rem .75rem; margin-top:.5rem }
+</style>
+</head>
+<body>
+<header><h1>♟️ Chess Tactics Dojo — Beginner ➜ Advanced</h1></header>
+<div class="app">
+  <section class="card">
+    <div id="board" class="boardWrap"></div>
+    <div class="controls">
+      <button id="btnHint">💡 Hint</button>
+      <button id="btnSolution">✅ Solution</button>
+      <button id="btnRetry">↻ Retry</button>
+      <button id="btnNext">Next ➜</button>
+      <select id="selTheme">
+        <option value="classic" selected>Board: Classic</option>
+        <option value="high">Board: High Contrast</option>
+      </select>
+      <select id="selPieces">
+        <option value="symbols" selected>Pieces: Symbols</option>
+        <option value="alpha">Pieces: Letters</option>
+      </select>
+      <span class="pill" id="turnBadge">White to move</span>
+      <span class="pill" id="status">Status: Ready</span>
+    </div>
+    <div class="banner" id="pzlInfo">Puzzle: –</div>
+  </section>
+  <aside class="card">
+    <h3 style="margin-top:.25rem">Curriculum</h3>
+    <ul style="margin:.4rem 0 0 1rem; padding:0; line-height:1.4">
+      <li>Mates (1–3)</li>
+      <li>Forks & Pins</li>
+      <li>Skewers, Discovered</li>
+      <li>Clearance, Deflection/Decoy</li>
+      <li>Overloading, Zwischenzug</li>
+      <li>Trapped Piece, X‑ray</li>
+    </ul>
+    <p style="opacity:.8">All puzzles are built‑in. No internet required. Upload this single file to GitHub Pages.</p>
+  </aside>
+</div>
+<script>
+/********************
+ * Clearer visuals  *
+ ********************/
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+// Configurable piece rendering: symbols (Unicode) or alpha (letters)
+const USE = { mode:'symbols' }; // 'symbols' | 'alpha'
+const SYMBOL = { 'P':'♙','N':'♘','B':'♗','R':'♖','Q':'♕','K':'♔', 'p':'♟','n':'♞','b':'♝','r':'♜','q':'♛','k':'♚' };
+const ALPHA  = { 'P':'P','N':'N','B':'B','R':'R','Q':'Q','K':'K', 'p':'p','n':'n','b':'b','r':'r','q':'q','k':'k' };
+
+function parseFEN(fen){
+  const [placement, turn] = fen.split(' ');
+  const rows = placement.split('/');
+  const board = [];
+  for(let r=0;r<8;r++){
+    const row = []; const s = rows[r];
+    for(const ch of s){ if(/[1-8]/.test(ch)){ for(let i=0;i<Number(ch);i++) row.push(''); } else { row.push(ch); } }
+    board.push(row);
+  }
+  return { board, turn };
+}
+
+let state = { board:[], turn:'w' };
+let selected = null; // e.g., 'e2'
+
+function render(containerId){
+  const container = document.getElementById(containerId);
+  // Ensure square size locks to container width
+  const cw = Math.floor(container.clientWidth || container.parentElement.clientWidth);
+  const sq = Math.max(24, Math.min(96, Math.floor((cw/8))));
+  container.style.setProperty('--sq', sq+'px');
+
+  container.innerHTML='';
+  const grid = document.createElement('div');
+  grid.className = 'boardGrid';
+  if(document.body.classList.contains('hc')) grid.classList.add('hc');
+  const files=['a','b','c','d','e','f','g','h'];
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + (((r+c)%2===1)? 'dark':'light');
+      const piece = state.board[r][c];
+      if(piece){
+        const span = document.createElement('span');
+        span.className = 'piece '+(piece===piece.toUpperCase()?'white':'black');
+        span.textContent = (USE.mode==='alpha'? ALPHA[piece] : SYMBOL[piece]) || '';
+        cell.appendChild(span);
+      }
+      const sqName = files[c]+(8-r); cell.dataset.sq = sqName; cell.onclick = ()=> onSquareClick(cell);
+      if(r===7){ const f=document.createElement('div'); f.className='coord-file'; f.textContent=files[c]; cell.appendChild(f); }
+      if(c===0){ const rk=document.createElement('div'); rk.className='coord-rank'; rk.textContent=(8-r); cell.appendChild(rk); }
+      grid.appendChild(cell);
+    }
+  }
+  container.appendChild(grid);
+  updateTurnBadge();
+}
+
+function doUci(uci){ const from=uci.slice(0,2), to=uci.slice(2,4); const [r1,c1]=rc(from), [r2,c2]=rc(to); state.board[r2][c2]=state.board[r1][c1]; state.board[r1][c1]=''; }
+
+// Controls
+$('#btnHint').onclick = ()=>{ const mv = current.line[step]; if(!mv) return; const to = mv.slice(2,4); $$('.hintSq').forEach(el=> el.classList.remove('hintSq')); const el = document.querySelector(`[data-sq="${to}"]`); if(el){ el.classList.add('hintSq'); setTimeout(()=> el.classList.remove('hintSq'), 1100); } statusMsg('Try to reach '+to, 'warn'); };
+$('#btnSolution').onclick = ()=>{ const remain = current.line.slice(step); if(!remain.length) return; const go=i=>{ if(i>=remain.length){ statusMsg('Solution shown','warn'); return; } const u=remain[i]; doUci(u); toggleTurn(); render('board'); setTimeout(()=> go(i+1), 380); }; go(0); step = current.line.length; };
+$('#btnRetry').onclick = ()=> loadPuzzle(PUZZLES.indexOf(current));
+$('#btnNext').onclick = ()=>{ const i = (PUZZLES.indexOf(current)+1)%PUZZLES.length; loadPuzzle(i); };
+
+// Theme + pieces
+$('#selTheme').onchange = ()=>{ const v=$('#selTheme').value; if(v==='high'){ document.body.classList.add('hc'); }else{ document.body.classList.remove('hc'); } render('board'); };
+$('#selPieces').onchange = ()=>{ const v=$('#selPieces').value; USE.mode = (v==='alpha')?'alpha':'symbols'; const b=$('#board'); if(v==='alpha'){ b.classList.add('alpha'); } else { b.classList.remove('alpha'); } render('board'); };
+
+// Boot + ResizeObserver to prevent mobile column jitter
+function setupBoardResizer(){
+  const wrap = document.getElementById('board');
+  const ro = new ResizeObserver(()=>{ render('board'); });
+  ro.observe(wrap);
+}
+setupBoardResizer();
+loadPuzzle(0);
+</script>
+</body>
+</html>
