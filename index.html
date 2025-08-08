@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chess Tactics Dojo — Self‑Contained</title>
+<style>
+  :root{--bg:#141833;--panel:#171a2a;--ink:#e7e9ff;--accent:#7bdcff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--sq-light:#f4ecd0;--sq-dark:#b58863;--sq-contrast-light:#fff6bf;--sq-contrast-dark:#5a6b9a}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;margin:0}
+  header{padding:.75rem 1rem;background:#0f142c;border-bottom:1px solid #222a4d;position:sticky;top:0}
+  h1{margin:0;font-size:1.1rem}
+  .app{width:min(980px,96vw);display:grid;grid-template-columns:1fr 320px;gap:1rem;padding:1rem;margin:0 auto}
+  @media (max-width:860px){.app{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid #242947;border-radius:14px;padding:.75rem}
+  #board{width:100%;max-width:620px;margin:auto}
+
+  /* Board as fixed-size CSS grid */
+  .boardWrap{position:relative;width:100%;max-width:620px;margin:auto;--sq:56px;contain:layout paint;touch-action:manipulation}
+  .boardGrid{display:grid;grid-template-columns:repeat(8,var(--sq));grid-auto-rows:var(--sq);width:calc(var(--sq)*8);height:calc(var(--sq)*8);border:8px solid #0f142c;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);margin:0 auto}
+  .cell{display:flex;align-items:center;justify-content:center;position:relative;user-select:none;cursor:pointer}
+  .light{background:var(--sq-light)}.dark{background:var(--sq-dark)}
+  .hc .light{background:var(--sq-contrast-light)}.hc .dark{background:var(--sq-contrast-dark)}
+  .sel{outline:4px solid #ffd200;outline-offset:-4px}
+  .hintSq{box-shadow:inset 0 0 0 4px rgba(251,191,36,.9)}
+  .coord-file{position:absolute;bottom:4px;right:6px;font-size:11px;opacity:.6;font-weight:600}
+  .coord-rank{position:absolute;top:4px;left:6px;font-size:11px;opacity:.6;font-weight:600}
+
+  /* Pieces */
+  .piece{font-weight:900;font-size:calc(var(--sq)*.82);line-height:1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased;display:inline-block;filter:drop-shadow(0 1px 0 rgba(0,0,0,.25))}
+  .piece.white{color:#fff;text-shadow:0 0 2px rgba(0,0,0,.6),0 1px 0 rgba(0,0,0,.8)}
+  .piece.black{color:#101015;text-shadow:0 0 2px rgba(255,255,255,.7),0 1px 0 rgba(255,255,255,.9)}
+  .alpha .piece.white{color:#fff}.alpha .piece.black{color:#101015}
+
+  .controls{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:.6rem}
+  button{background:#2a3162;color:#fff;border:1px solid #3a4280;padding:.55rem .85rem;border-radius:10px;cursor:pointer}
+  select{background:#121736;color:#fff;border:1px solid #2b3154;border-radius:10px;padding:.45rem .6rem}
+  .pill{display:inline-flex;align-items:center;gap:.35rem;border:1px solid #2b3154;background:#161a31;padding:.25rem .5rem;border-radius:999px;font-size:.85rem}
+  .good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+  .banner{background:#121736;border:1px solid #2a3162;border-radius:12px;padding:.5rem .75rem;margin-top:.5rem}
+  .dev{opacity:.8;font-size:.85rem;margin-top:.5rem}
+</style>
+</head>
+<body>
+<header><h1>♟️ Chess Tactics Dojo — Beginner ➜ Advanced</h1></header>
+<div class="app">
+  <section class="card">
+    <div id="board" class="boardWrap"></div>
+    <div class="controls">
+      <button id="btnHint">💡 Hint</button>
+      <button id="btnSolution">✅ Solution</button>
+      <button id="btnRetry">↻ Retry</button>
+      <button id="btnNext">Next ➜</button>
+      <select id="selTheme">
+        <option value="classic" selected>Board: Classic</option>
+        <option value="high">Board: High Contrast</option>
+      </select>
+      <select id="selPieces">
+        <option value="symbols" selected>Pieces: Symbols</option>
+        <option value="alpha">Pieces: Letters</option>
+      </select>
+      <span class="pill" id="turnBadge">White to move</span>
+      <span class="pill" id="status">Status: Ready</span>
+    </div>
+    <div class="banner" id="pzlInfo">Puzzle: –</div>
+  </section>
+  <aside class="card">
+    <h3 style="margin-top:.25rem">Curriculum</h3>
+    <ul style="margin:.4rem 0 0 1rem; padding:0; line-height:1.4">
+      <li>Mates (1–3)</li>
+      <li>Forks & Pins</li>
+      <li>Skewers, Discovered</li>
+      <li>Clearance, Deflection/Decoy</li>
+      <li>Overloading, Zwischenzug</li>
+      <li>Trapped Piece, X‑ray</li>
+    </ul>
+    <p class="dev" id="selfTest">Self‑test: pending…</p>
+    <p style="opacity:.8">All puzzles are built‑in. No internet required. Upload this single file to GitHub Pages.</p>
+  </aside>
+</div>
+
+<script>
+/********************
+ * Utilities & State *
+ ********************/
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function statusMsg(t, cls=''){ const el = $('#status'); if(el){ el.textContent = 'Status: '+t; el.className = cls||''; } }
+
+// piece sets
+const USE   = { mode:'symbols' }; // 'symbols' | 'alpha'
+const SYMBOL= { 'P':'♙','N':'♘','B':'♗','R':'♖','Q':'♕','K':'♔','p':'♟','n':'♞','b':'♝','r':'♜','q':'♛','k':'♚' };
+const ALPHA = { 'P':'P','N':'N','B':'B','R':'R','Q':'Q','K':'K','p':'p','n':'n','b':'b','r':'r','q':'q','k':'k' };
+
+let state = { board:[], turn:'w' };
+function emptyBoard(){ const b=[]; for(let r=0;r<8;r++){ b.push(new Array(8).fill('')); } return b; }
+
+function parseFEN(fen){
+  const [placement, turn] = fen.split(' ');
+  const rows = placement.split('/');
+  const board = [];
+  for(let r=0;r<8;r++){
+    const row = []; const s = rows[r];
+    for(const ch of s){ if(/[1-8]/.test(ch)){ for(let i=0;i<Number(ch);i++) row.push(''); } else { row.push(ch); } }
+    board.push(row);
+  }
+  return { board, turn };
+}
+
+/****************
+ * Board Render *
+ ****************/
+function rc(sq){ const file='abcdefgh'.indexOf(sq[0]); const rank=8-parseInt(sq[1],10); return [rank,file]; }
+function updateTurnBadge(){ const b=$('#turnBadge'); if(b){ b.textContent=(state.turn==='w'?'White':'Black')+' to move'; } }
+function clearSel(){ $$('.sel').forEach(el=> el.classList.remove('sel')); }
+
+function render(containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const rectW = container.getBoundingClientRect().width || (container.parentElement? container.parentElement.getBoundingClientRect().width:320);
+  const sq = Math.max(24, Math.min(96, Math.floor(rectW/8)));
+  container.style.setProperty('--sq', sq+'px');
+
+  container.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'boardGrid';
+  if(document.body.classList.contains('hc')) grid.classList.add('hc');
+
+  const files=['a','b','c','d','e','f','g','h'];
+  const board = (state && Array.isArray(state.board) && state.board.length===8) ? state.board : emptyBoard();
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + (((r+c)%2===1)? 'dark':'light');
+      const piece = (board[r] && board[r][c]) || '';
+      if(piece){
+        const span = document.createElement('span');
+        span.className = 'piece '+(piece===piece.toUpperCase()?'white':'black');
+        span.textContent = (USE.mode==='alpha'? ALPHA[piece] : SYMBOL[piece]) || '';
+        cell.appendChild(span);
+      }
+      const sqName = files[c]+(8-r); cell.dataset.sq = sqName; cell.onclick = ()=> onSquareClick(cell);
+      if(r===7){ const f=document.createElement('div'); f.className='coord-file'; f.textContent=files[c]; cell.appendChild(f); }
+      if(c===0){ const rk=document.createElement('div'); rk.className='coord-rank'; rk.textContent=(8-r); cell.appendChild(rk); }
+      grid.appendChild(cell);
+    }
+  }
+  container.appendChild(grid);
+  updateTurnBadge();
+}
+
+/****************
+ * Game / Puzzles
+ ****************/
+const PUZZLES = [
+  {id:'mate_backrank', title:'Mate pattern: back‑rank', fen:'6k1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1', line:['f1d1','g8f8','d1d8']},
+  {id:'ladder_seed', title:'Ladder mate seed', fen:'6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1', line:['g1f1','f8f8','f1e1','f8f8','e1e8']},
+  {id:'knight_fork', title:'Knight fork idea', fen:'r1bqk2r/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 2 6', line:['f3g5','d8g5','d1h5']},
+  {id:'simple_pin', title:'Pin then win', fen:'rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 2', line:['d8h4','g2g3','h4d4']},
+  {id:'skewer', title:'Skewer motif', fen:'r4rk1/pp3ppp/2n5/2b5/2B5/2N5/PPP2PPP/R2Q1RK1 w - - 0 1', line:['c4f7','c5f2','f7d5']},
+  {id:'discovered', title:'Discovered attack', fen:'r1bqk2r/pppp1ppp/2n5/4p3/2B1P3/2N5/PPPP1PPP/R1BQ1RK1 w kq - 2 6', line:['c3b5','a7a6','c4f7']},
+  {id:'clearance', title:'Clear a line', fen:'2r2rk1/1p3ppp/p1n1b3/3q4/3P4/2N1PN2/PP3PPP/2RQ1RK1 w - - 0 1', line:['e3e4','d5h5','d1d2']},
+  {id:'deflection', title:'Deflect the defender', fen:'r2q1rk1/pp2bppp/2n1pn2/2bp4/2P5/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 1', line:['c4d5','e6d5']},
+  {id:'decoy', title:'Decoy to fork', fen:'r1bq1rk1/ppp2ppp/2np4/3Np3/2B1P3/5N2/PPP2PPP/R1BQ1RK1 w - - 0 1', line:['c4b5','d6e7']},
+  {id:'overload', title:'Overload the defender', fen:'r2q1rk1/ppp2ppp/2np4/3bp3/2B1P3/2N2N2/PPP2PPP/R1BQ1RK1 w - - 0 1', line:['c4d5','d8d7','c1g5']},
+  {id:'zwischenzug', title:'Zwischenzug!', fen:'r2q1rk1/pp2bppp/2n1pn2/2bp4/2P5/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 1', line:['c4d5','c8g4']},
+  {id:'trapped', title:'Trap the bishop', fen:'r1bqkbnr/pppp1ppp/2n5/4p3/1b1P4/5N2/PPPNPPPP/R1BQKB1R w KQkq - 2 4', line:['c2c3','b4d6','d4d5']},
+  {id:'xray', title:'X‑ray pressure', fen:'r1bq1rk1/ppp2ppp/2np4/3bp3/2B1P3/2N2N2/PPP2PPP/R1BQ1RK1 w - - 0 1', line:['c4d5','d5c4','c1g5']}
+];
+
+let current = null;
+let step = 0;
+let appReady = false;
+
+function loadPuzzle(idx){
+  current = PUZZLES[idx];
+  step = 0; clearSel();
+  state = parseFEN(current.fen);
+  render('board');
+  const info = $('#pzlInfo'); if(info){ info.innerHTML = `Puzzle: <b>${current.title}</b> · <span class="pill">Moves: ${current.line.length}</span>`; }
+  statusMsg('Your move');
+  appReady = true;
+}
+
+function onSquareClick(cell){
+  const sq = cell.dataset.sq;
+  const sel = $$('.sel')[0];
+  if(!sel){
+    // select only if piece of side to move
+    const [r,c] = rc(sq); const piece = (state.board[r] && state.board[r][c]) || '';
+    if(!piece) return; const isWhite = piece===piece.toUpperCase();
+    if((state.turn==='w' && !isWhite) || (state.turn==='b' && isWhite)) return;
+    cell.classList.add('sel'); statusMsg('Selected '+sq); return;
+  }
+  const fromSq = sel.dataset.sq;
+  if(fromSq === sq){ sel.classList.remove('sel'); statusMsg('Selection cleared'); return; }
+  const ok = tryExpectedMove(fromSq+sq);
+  if(!ok){ cell.classList.add('hintSq'); setTimeout(()=> cell.classList.remove('hintSq'), 500); statusMsg('Not the tactic — try again','bad'); return; }
+  doUci(fromSq+sq); sel.classList.remove('sel'); render('board'); stepSolution();
+}
+
+function tryExpectedMove(uci){ const expect = current.line[step]; if(!expect) return false; if(uci===expect){ step++; toggleTurn(); return true; } return false; }
+function toggleTurn(){ state.turn = (state.turn==='w'?'b':'w'); updateTurnBadge(); }
+function stepSolution(){ if(step < current.line.length && step % 2 === 1){ const u=current.line[step]; doUci(u); step++; toggleTurn(); render('board'); setTimeout(()=> statusMsg('Your move'), 15); } if(step >= current.line.length){ statusMsg('Solved!','good'); } }
+function doUci(uci){ const from=uci.slice(0,2), to=uci.slice(2,4); const [r1,c1]=rc(from), [r2,c2]=rc(to); state.board[r2][c2]=state.board[r1][c1]; state.board[r1][c1]=''; }
+
+// Controls
+$('#btnHint').onclick = ()=>{ const mv=current.line[step]; if(!mv) return; const to=mv.slice(2,4); const el=document.querySelector(`[data-sq="${to}"]`); if(el){ el.classList.add('hintSq'); setTimeout(()=> el.classList.remove('hintSq'), 1100); } statusMsg('Try to reach '+to,'warn'); };
+$('#btnSolution').onclick = ()=>{ const remain=current.line.slice(step); if(!remain.length) return; const go=i=>{ if(i>=remain.length){ statusMsg('Solution shown','warn'); return; } const u=remain[i]; doUci(u); toggleTurn(); render('board'); setTimeout(()=> go(i+1), 380); }; go(0); step=current.line.length; };
+$('#btnRetry').onclick = ()=> loadPuzzle(PUZZLES.indexOf(current));
+$('#btnNext').onclick = ()=>{ const i=(PUZZLES.indexOf(current)+1)%PUZZLES.length; loadPuzzle(i); };
+$('#selTheme').onchange = ()=>{ const v=$('#selTheme').value; if(v==='high'){ document.body.classList.add('hc'); } else { document.body.classList.remove('hc'); } render('board'); };
+$('#selPieces').onchange = ()=>{ const v=$('#selPieces').value; USE.mode = (v==='alpha')?'alpha':'symbols'; const b=$('#board'); if(v==='alpha'){ b.classList.add('alpha'); } else { b.classList.remove('alpha'); } render('board'); };
+
+// Resize handling (no-jitter)
+function setupBoardResizer(){ const wrap=$('#board'); if(!wrap) return; if('ResizeObserver' in window){ const ro=new ResizeObserver(()=>{ if(appReady) render('board'); }); ro.observe(wrap); } else { window.addEventListener('resize', ()=> appReady && render('board')); } }
+
+// Self-tests
+function runSelfTests(){
+  let ok=true; const msgs=[];
+  try{ const t=parseFEN('8/8/8/8/8/8/8/7K w - - 0 1'); ok=ok&&t.board.length===8&&t.turn==='w'; msgs.push('parseFEN'); }catch(e){ ok=false; msgs.push('parseFEN❌'); }
+  try{ if(rc('e2').join(',')!=='6,4') throw 0; msgs.push('rc'); }catch(e){ ok=false; msgs.push('rc❌'); }
+  try{ const s=JSON.parse(JSON.stringify(state)); const u='e2e4'; state={board:emptyBoard(),turn:'w'}; state.board[6][4]='P'; doUci(u); if(state.board[4][4]!=='P') throw 0; msgs.push('doUci'); }catch(e){ ok=false; msgs.push('doUci❌'); }
+  const el=$('#selfTest'); if(el){ el.textContent = (ok? '✅ Self‑tests passed: ':'⚠️ Self‑tests: ') + msgs.join(', '); }
+}
+
+// Boot
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{ loadPuzzle(0); runSelfTests(); } catch(e){ console.error(e); statusMsg('Init error: '+e.message,'bad'); }
+  setupBoardResizer();
+});
+
+// Global error surface so we don't fail silently
+window.addEventListener('error', e=>{ statusMsg('Error: '+e.message,'bad'); });
+</script>
+</body>
+</html>
